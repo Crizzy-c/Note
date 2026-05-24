@@ -2,55 +2,457 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>统计-智能Skill初代机</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>统计 - 智能Skill初代机 | 提醒数据分析</title>
     <link rel="stylesheet" href="../assets/styles/global.css">
-    <script src="https://registry.npmmirror.com/echarts@5.5.0/files/dist/echarts.min.js"></script>
+    <!-- 引入 Swiper (保留原有依赖，不影响统计功能) -->
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+    <!-- 引入 ECharts 核心库 - 修复统计图表无法显示的问题 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <!-- 公共组件脚本 (保持原有调用，若文件缺失不会影响核心统计逻辑) -->
     <script src="../components/header.js"></script>
     <script src="../components/footer.js"></script>
+    <style>
+        /* 额外微调，保证统计卡片展示优雅 */
+        .card {
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            background: #fff;
+            border-radius: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+            transition: all 0.2s ease;
+        }
+        #chart {
+            width: 100%;
+            min-height: 400px;
+            background: #fafafc;
+            border-radius: 16px;
+            margin: 1rem 0;
+        }
+        .stats-summary {
+            background: #f5f7fb;
+            padding: 12px 18px;
+            border-radius: 28px;
+            display: inline-block;
+            font-size: 0.95rem;
+            color: #2c3e4e;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .stats-summary span {
+            font-weight: 600;
+            color: #07c160;
+        }
+        .insight-note {
+            margin-top: 20px;
+            font-size: 0.85rem;
+            color: #5e6f8d;
+            background: #f0f3f9;
+            padding: 10px 16px;
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .badge-info {
+            background: #e9ecef;
+            border-radius: 40px;
+            padding: 4px 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .empty-chart-tip {
+            text-align: center;
+            padding: 3rem 0;
+            color: #8a99b4;
+            font-weight: 500;
+        }
+        @media (max-width: 640px) {
+            .card {
+                padding: 1rem;
+            }
+            .stats-summary {
+                font-size: 0.85rem;
+            }
+        }
+    </style>
 </head>
 <body>
 <div id="header-placeholder"></div>
-<div class="container" style="display: block;">
+<div class="container" style="display: block; max-width: 1100px; margin: 0 auto; padding: 1rem;">
     <div class="card">
-        <h2 id="title">📊 提醒统计（按时长分布）</h2>
-        <div id="chart" style="height: 400px;"></div>
-        <p>✅ 总提醒数：<span id="totalCount"></span> &nbsp; | &nbsp; ✅ 已完成：<span id="doneCount"></span></p>
+        <h2 id="title" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: space-between;">
+            <span>📊 提醒统计 · 按时长分布</span>
+            <span class="stats-summary">
+                ✅ 总提醒数：<span id="totalCount">0</span> &nbsp;|&nbsp;
+                ✅ 已完成：<span id="doneCount">0</span>
+            </span>
+        </h2>
+        <!-- ECharts 统计图表容器 -->
+        <div id="chart" style="height: 420px;"></div>
+        <div class="insight-note">
+            <span>📌 统计说明：</span>
+            <span>基于「提醒时长(分钟)」聚合展示，无效/缺失时长归为「⚠️ 无效时长」分类，确保数据完整性。</span>
+            <span class="badge-info">分布可视化</span>
+            <span class="badge-info">实时同步本地提醒</span>
+        </div>
     </div>
 </div>
 <div id="footer-placeholder"></div>
 
 <script>
-    document.getElementById('header-placeholder').innerHTML = window.renderHeader('stats');
-    document.getElementById('footer-placeholder').innerHTML = window.renderFooter();
+    (function() {
+        // ---------- 1. 确保 header / footer 组件兼容（原有调用，避免异常）----------
+        if (typeof window.renderHeader === 'function') {
+            document.getElementById('header-placeholder').innerHTML = window.renderHeader('stats');
+        } else {
+            // 降级处理：防止因组件缺失导致页面结构异常，但统计核心继续工作
+            console.warn("header.js 未正常加载，使用占位");
+            document.getElementById('header-placeholder').innerHTML = '<div style="background:#f8f9fc; padding:12px; text-align:center; border-bottom:1px solid #eaeef5;">📋 智能Skill初代机</div>';
+        }
+        if (typeof window.renderFooter === 'function') {
+            document.getElementById('footer-placeholder').innerHTML = window.renderFooter();
+        } else {
+            document.getElementById('footer-placeholder').innerHTML = '<div style="text-align:center; padding:20px; font-size:13px; color:#7c8ba0;">© 智能提醒 · 数据洞察</div>';
+        }
 
-    function getReminders() {
-        return JSON.parse(localStorage.getItem('smart_reminders') || '[]');
-    }
+        // ---------- 2. 获取提醒数据 (处理异常 & 标准化) ----------
+        function getReminders() {
+            try {
+                const raw = localStorage.getItem('smart_reminders');
+                if (!raw) return [];
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (e) {
+                console.error("读取提醒数据失败", e);
+                return [];
+            }
+        }
 
-    const reminders = getReminders();
-    // 统计各时长档位数量
-    const durationMap = new Map();
-    reminders.forEach(r => {
-        const dur = r.duration;
-        durationMap.set(dur, (durationMap.get(dur) || 0) + 1);
-    });
-    const sortedDurations = Array.from(durationMap.keys()).sort((a,b) => a-b);
-    const xData = sortedDurations.map(d => d + '分钟');
-    const yData = sortedDurations.map(d => durationMap.get(d));
+        const reminders = getReminders();
+        const totalReminders = reminders.length;
+        // 已完成数量 (兼容布尔值或字符串/数字表示)
+        const doneCount = reminders.reduce((acc, r) => {
+            // 严谨判断 done 字段是否为「已完成」状态
+            const isDone = r && (r.done === true || r.done === 'true' || r.done === 1);
+            return acc + (isDone ? 1 : 0);
+        }, 0);
+        
+        // 更新基础统计UI
+        document.getElementById('totalCount').innerText = totalReminders;
+        document.getElementById('doneCount').innerText = doneCount;
 
-    const chart = echarts.init(document.getElementById('chart'));
-    chart.setOption({
-        title: { text: '不同时长提醒数量' },
-        tooltip: { trigger: 'axis' },
-        xAxis: { type: 'category', data: xData },
-        yAxis: { type: 'value' },
-        series: [{ type: 'bar', data: yData, itemStyle: { color: '#07c160' } }]
-    });
+        // ---------- 3. 核心统计：按时长聚合（增强版：统一数值类型，过滤/归类无效时长）----------
+        // 为了保证图表总数 = 总提醒数，无效或非正数的时长单独归类为 "invalid" 展示
+        const durationMap = new Map();   // key: 数值(分钟) 或 'invalid' 字符串
+        
+        reminders.forEach(reminder => {
+            if (!reminder) return;
+            let rawDuration = reminder.duration;
+            // 处理可能的 undefined / null / 空字符串
+            if (rawDuration === undefined || rawDuration === null || rawDuration === '') {
+                // 无效时长归类
+                const invalidKey = 'invalid';
+                durationMap.set(invalidKey, (durationMap.get(invalidKey) || 0) + 1);
+                return;
+            }
+            // 尝试转换为数字（支持字符串 "25" / 数字 25 / 浮点等）
+            let durationNum = Number(rawDuration);
+            if (isNaN(durationNum) || durationNum <= 0) {
+                // 非正数或NaN 也归类为无效时长
+                const invalidKey = 'invalid';
+                durationMap.set(invalidKey, (durationMap.get(invalidKey) || 0) + 1);
+            } else {
+                // 有效时长：保留整数分钟展示更清晰（向下取整或四舍五入？保留整数符合习惯）
+                // 注意：15.5分钟按业务场景可保留为15.5，但柱状图x轴如果都是整数+小数并存可能拥挤，
+                // 为了分布直观，保留原始数值（可带一位小数展示），但排序依旧按数值大小。
+                // 为了排序精准，使用原始数字作为key，展示时格式化为「X分钟」或「X.X分钟」
+                const exactDuration = durationNum;
+                durationMap.set(exactDuration, (durationMap.get(exactDuration) || 0) + 1);
+            }
+        });
 
-    const total = reminders.length;
-    const done = reminders.reduce((acc, r) => acc + (r.done ? 1 : 0), 0);
-    document.getElementById('totalCount').innerText = total;
-    document.getElementById('doneCount').innerText = done;
+        // 4. 构造图表所需的数据 (排序：有效数值升序，无效分类置于末尾)
+        const validKeys = [];
+        let hasInvalid = false;
+        let invalidCount = 0;
+        
+        for (let [key, count] of durationMap.entries()) {
+            if (key === 'invalid') {
+                hasInvalid = true;
+                invalidCount = count;
+            } else if (typeof key === 'number') {
+                validKeys.push(key);
+            }
+        }
+        
+        // 数值升序排列 (从小到大)
+        validKeys.sort((a, b) => a - b);
+        
+        // 构建最终 X 轴数据 和  Y 轴数据
+        const xAxisData = [];
+        const seriesData = [];
+        
+        // 添加所有有效时长柱子
+        for (let dur of validKeys) {
+            // 格式化时长文本：整数显示「X分钟」，小数显示「X.X分钟」
+            let displayLabel = '';
+            if (Number.isInteger(dur)) {
+                displayLabel = `${dur}分钟`;
+            } else {
+                // 保留一位小数，避免过长
+                const rounded = Math.round(dur * 10) / 10;
+                displayLabel = `${rounded}分钟`;
+            }
+            xAxisData.push(displayLabel);
+            seriesData.push(durationMap.get(dur));
+        }
+        
+        // 如果存在无效时长分类，放在最后，并用警告图标提示
+        if (hasInvalid) {
+            xAxisData.push('⚠️ 无效/缺失时长');
+            seriesData.push(invalidCount);
+        }
+        
+        // 特殊情况：没有任何提醒数据 => 显示空状态友好提示
+        const hasData = totalReminders > 0 && seriesData.length > 0;
+        
+        // 5. 初始化 ECharts 并渲染图表 (确保容器存在)
+        const chartDom = document.getElementById('chart');
+        let chart = null;
+        if (chartDom) {
+            chart = echarts.init(chartDom);
+            
+            // 根据是否有数据决定配置
+            if (!hasData) {
+                // 无数据时的清新提示
+                chart.setOption({
+                    title: {
+                        show: true,
+                        text: '📭 暂无提醒数据',
+                        subtext: '请先在「提醒」页面创建提醒事项',
+                        left: 'center',
+                        top: 'center',
+                        textStyle: { fontSize: 16, fontWeight: 'normal', color: '#8f9bb3' },
+                        subtextStyle: { color: '#b9c2d4' }
+                    },
+                    xAxis: { show: false },
+                    yAxis: { show: false },
+                    series: [],
+                    graphic: null,
+                    backgroundColor: '#fafafc'
+                });
+                // 额外添加一个透明占位效果，无需其他操作
+            } else {
+                // 有数据 → 绘制彩色柱状图，增强可读性
+                // 根据不同时长区间可搭配渐变，但保留清晰简洁风格
+                const option = {
+                    tooltip: {
+                        trigger: 'axis',
+                        axisPointer: { type: 'shadow' },
+                        formatter: function(params) {
+                            if (!params || params.length === 0) return '';
+                            const dataPoint = params[0];
+                            const durationLabel = dataPoint.name;
+                            const count = dataPoint.value;
+                            let extraMsg = '';
+                            if (durationLabel.includes('无效/缺失')) {
+                                extraMsg = '（提醒时长未设置或无效）';
+                            } else {
+                                extraMsg = '的提醒数量';
+                            }
+                            return `<strong>⏱️ ${durationLabel}</strong><br/>📌 数量：${count} 个${extraMsg}`;
+                        },
+                        backgroundColor: 'rgba(0,0,0,0.75)',
+                        borderColor: '#07c160',
+                        borderWidth: 1,
+                        textStyle: { color: '#fff', fontSize: 12 }
+                    },
+                    grid: {
+                        left: '8%',
+                        right: '5%',
+                        top: '12%',
+                        bottom: '8%',
+                        containLabel: true
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: xAxisData,
+                        axisLabel: {
+                            rotate: xAxisData.length > 6 ? 25 : 0,
+                            interval: 0,
+                            fontSize: 11,
+                            fontWeight: '500',
+                            color: '#2e405b',
+                            margin: 12,
+                            formatter: function(val) {
+                                // 如果标签过长且无效时长特殊样式处理
+                                if (val.length > 12) return val.slice(0, 10) + '..';
+                                return val;
+                            }
+                        },
+                        axisLine: { lineStyle: { color: '#cbd5e1', width: 1.5 } },
+                        axisTick: { show: false }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '提醒数量 (个)',
+                        nameLocation: 'middle',
+                        nameGap: 45,
+                        nameTextStyle: { fontWeight: 500, fontSize: 12, color: '#475569' },
+                        splitLine: { lineStyle: { type: 'dashed', color: '#e2e8f0' } },
+                        axisLabel: { fontSize: 11, fontWeight: 'normal', color: '#334155' }
+                    },
+                    series: [
+                        {
+                            name: '提醒数量',
+                            type: 'bar',
+                            data: seriesData,
+                            barWidth: '55%',
+                            itemStyle: {
+                                borderRadius: [8, 8, 0, 0],
+                                color: {
+                                    type: 'linear',
+                                    x: 0, y: 0, x2: 0, y2: 1,
+                                    colorStops: [
+                                        { offset: 0, color: '#07c160' },
+                                        { offset: 1, color: '#06ae56' }
+                                    ]
+                                },
+                                shadowColor: 'rgba(7,193,96,0.2)',
+                                shadowBlur: 8,
+                                shadowOffsetY: 3
+                            },
+                            label: {
+                                show: true,
+                                position: 'top',
+                                fontWeight: 'bold',
+                                fontSize: 12,
+                                color: '#1f2d3d',
+                                formatter: '{c}',
+                                offset: [0, 4]
+                            },
+                            emphasis: {
+                                focus: 'series',
+                                itemStyle: {
+                                    shadowBlur: 12,
+                                    shadowColor: 'rgba(7,193,96,0.4)',
+                                    color: '#2ecc71'
+                                }
+                            },
+                            animation: true,
+                            animationDuration: 800,
+                            animationEasing: 'cubicOut'
+                        }
+                    ],
+                    title: {
+                        show: false   // 主标题已在页面card展示，避免重复
+                    },
+                    toolbox: {
+                        feature: {
+                            saveAsImage: { title: '保存图表', backgroundColor: '#ffffff' },
+                            restore: { title: '重置' }
+                        },
+                        right: 20,
+                        top: 0,
+                        iconSize: 16
+                    },
+                    graphic: [
+                        {
+                            type: 'text',
+                            left: 'left',
+                            top: 0,
+                            style: {
+                                text: totalReminders > 0 ? `📈 覆盖 ${totalReminders} 条提醒` : '',
+                                fill: '#6b7a8f',
+                                fontSize: 12,
+                                fontWeight: 'normal'
+                            },
+                            invisible: totalReminders === 0
+                        }
+                    ]
+                };
+                
+                // 如果数据中包含了无效类别，可单独为其设置不同柱状颜色（可选，提升辨识）
+                if (hasInvalid) {
+                    // 动态修改最后一个柱子的颜色为橙色警示色 (无效/缺失提醒)
+                    const invalidIdx = xAxisData.findIndex(label => label.includes('无效/缺失'));
+                    if (invalidIdx !== -1) {
+                        // 在系列中通过 itemStyle 回调单独设置颜色
+                        option.series[0].itemStyle = {
+                            ...option.series[0].itemStyle,
+                            // 针对不同数据项采用不同颜色
+                            color: function(params) {
+                                const dataIndex = params.dataIndex;
+                                const labelVal = xAxisData[dataIndex];
+                                if (labelVal && labelVal.includes('无效/缺失')) {
+                                    return '#f39c12';  // 橙金色强调异常数据
+                                }
+                                // 渐变绿
+                                return {
+                                    type: 'linear',
+                                    x: 0, y: 0, x2: 0, y2: 1,
+                                    colorStops: [
+                                        { offset: 0, color: '#07c160' },
+                                        { offset: 1, color: '#06ae56' }
+                                    ]
+                                };
+                            }
+                        };
+                    }
+                }
+                chart.setOption(option);
+            }
+            
+            // 窗口自适应
+            window.addEventListener('resize', function() {
+                if (chart && !chart.isDisposed()) {
+                    chart.resize();
+                }
+            });
+        } else {
+            console.error("未找到 chart 容器，无法渲染统计图");
+        }
+        
+        // 6. 附加辅助DOM: 当存在无效时长提醒时，显示额外提醒详情（可选提升可用性）
+        if (hasInvalid && totalReminders > 0) {
+            const insightDiv = document.querySelector('.insight-note');
+            if (insightDiv && !document.querySelector('.invalid-warning-tip')) {
+                const warnSpan = document.createElement('span');
+                warnSpan.className = 'badge-info';
+                warnSpan.style.background = '#fff2e0';
+                warnSpan.style.color = '#e67e22';
+                warnSpan.innerHTML = `⚠️ 包含 ${invalidCount} 条无效/缺失时长的提醒`;
+                insightDiv.appendChild(warnSpan);
+            }
+        }
+        
+        // 7. 若本地存储数据为空，给予用户引导交互
+        if (totalReminders === 0) {
+            const chartContainer = document.getElementById('chart');
+            if (chartContainer && !chartContainer.querySelector('.empty-guide')) {
+                const guideMsg = document.createElement('div');
+                guideMsg.className = 'empty-chart-tip';
+                guideMsg.style.marginTop = '-60px';
+                guideMsg.style.pointerEvents = 'none';
+                guideMsg.innerHTML = '✨ 暂无任何提醒数据，去「提醒列表」添加一条提醒吧 ✨';
+                guideMsg.style.fontSize = '14px';
+                guideMsg.style.fontWeight = '500';
+                // 但不破坏图表显示，将提示作为附加层（不影响echarts交互）
+                if (chartContainer && !chartContainer.querySelector('.empty-guide')) {
+                    guideMsg.classList.add('empty-guide');
+                    chartContainer.style.position = 'relative';
+                    chartContainer.appendChild(guideMsg);
+                    setTimeout(() => {
+                        if (guideMsg) guideMsg.style.opacity = '0.8';
+                    }, 100);
+                }
+            }
+        }
+        
+        // 8. 控制台输出统计摘要（便于调试）
+        console.log(`[统计面板] 总提醒: ${totalReminders}, 已完成: ${doneCount}, 有效时长分组: ${validKeys.length}, 无效分组: ${hasInvalid ? invalidCount : 0}`);
+    })();
 </script>
 </body>
 </html>
