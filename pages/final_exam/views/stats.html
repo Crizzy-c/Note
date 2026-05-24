@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>统计-智能Skill初代机</title>
+    <link rel="stylesheet" href="../assets/styles/global.css">
+    <script src="https://registry.npmmirror.com/echarts@5.5.0/files/dist/echarts.min.js"></script>
+    <script src="../components/header.js"></script>
+    <script src="../components/footer.js"></script>
+</head>
+<body>
+<div id="header-placeholder"></div>
+<div class="container" style="display: block;">
+    <div class="card">
+        <h2 id="title">📊 提醒统计（按时长分布）</h2>
+        <div id="chart" style="height: 400px;"></div>
+        <p>✅ 总提醒数：<span id="totalCount"></span> &nbsp; | &nbsp; ✅ 已完成：<span id="doneCount"></span></p>
+    </div>
+</div>
+<div id="footer-placeholder"></div>
+
+<script>
+    document.getElementById('header-placeholder').innerHTML = window.renderHeader('stats');
+    document.getElementById('footer-placeholder').innerHTML = window.renderFooter();
+
+    function getReminders() {
+        return JSON.parse(localStorage.getItem('smart_reminders') || '[]');
+    }
+
+    const reminders = getReminders();
+    // 统计各时长档位数量
+    const durationMap = new Map();
+    reminders.forEach(r => {
+        const dur = r.duration;
+        durationMap.set(dur, (durationMap.get(dur) || 0) + 1);
+    });
+    const sortedDurations = Array.from(durationMap.keys()).sort((a,b) => a-b);
+    const xData = sortedDurations.map(d => d + '分钟');
+    const yData = sortedDurations.map(d => durationMap.get(d));
+
+    const chart = echarts.init(document.getElementById('chart'));
+    chart.setOption({
+        title: { text: '不同时长提醒数量' },
+        tooltip: { trigger: 'axis' },
+        xAxis: { type: 'category', data: xData },
+        yAxis: { type: 'value' },
+        series: [{ type: 'bar', data: yData, itemStyle: { color: '#07c160' } }]
+    });
+
+    const total = reminders.length;
+    const done = reminders.reduce((acc, r) => acc + (r.done ? 1 : 0), 0);
+    document.getElementById('totalCount').innerText = total;
+    document.getElementById('doneCount').innerText = done;
+</script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>历史提醒-智能Skill初代机</title>
+    <link rel="stylesheet" href="../assets/styles/global.css">
+    <script src="../components/header.js"></script>
+    <script src="../components/footer.js"></script>
+    <script src="../components/reminderCore.js"></script>
+</head>
+<body>
+<div id="header-placeholder"></div>
+<div class="container" style="display: block;">
+    <div class="card">
+        <h2 id="title">📋 历史提醒</h2>
+        <div style="margin-bottom: 1rem;">
+            <button id="showAll">全部</button>
+            <button id="sortByDuration">按时长排序（升序）
+            </button>
+        </div>
+        <div id="historyList"></div>
+    </div>
+</div>
+<div id="footer-placeholder"></div>
+
+<script>
+    document.getElementById('header-placeholder').innerHTML = window.renderHeader('history');
+    document.getElementById('footer-placeholder').innerHTML = window.renderFooter();
+
+    function getHistory() {
+        return window.reminderCore.getHistoryReminders();
+    }
+
+    let currentData = [];
+
+    function escapeHtml(str) {
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    function renderList(data) {
+        const container = document.getElementById('historyList');
+        if (data.length === 0) {
+            container.innerHTML = '<p>暂无历史提醒</p>';
+            return;
+        }
+        container.innerHTML = data.map(rem => `
+            <div style="border-bottom:1px solid #e9e9ef; padding: 12px;">
+                <strong>${escapeHtml(rem.text)}</strong><br>
+                ⏱️ ${rem.duration}分钟定时<br>
+                📅 触发时间：${new Date(rem.triggerAt).toLocaleString()}
+            </div>
+        `).join('');
+    }
+
+    function refresh() {
+        let history = getHistory();
+        currentData = [...history];
+        renderList(currentData);
+    }
+
+    document.getElementById('showAll').onclick = () => refresh();
+    document.getElementById('sortByDuration').onclick = () => {
+        const sorted = [...currentData].sort((a,b) => a.duration - b.duration);
+        renderList(sorted);
+    };
+
+    refresh();
+</script>
+</body>
+</html>

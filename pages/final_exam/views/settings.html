@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>设置-智能Skill初代机</title>
+    <link rel="stylesheet" href="../assets/styles/global.css">
+    <script src="../components/header.js"></script>
+    <script src="../components/footer.js"></script>
+    <script src="../components/reminderCore.js"></script>
+</head>
+<body>
+<div id="header-placeholder"></div>
+<div class="container" style="display: block;">
+    <div class="card">
+        <h2 id="title">⚙️ 数据管理</h2>
+        <button id="clearBtn" class="danger" style="background:#dc2626; margin-right: 10px;">🗑️ 清空所有提醒</button>
+        <button id="exportBtn" style="background:#16a34a;">📥 导出JSON</button>
+        <button id="notifyBtn" class="warning" style="background:#f59e0b; margin-top: 10px;">🔔 请求通知权限</button>
+        <div id="msg" style="margin-top: 1rem;"></div>
+    </div>
+</div>
+<div id="footer-placeholder"></div>
+
+<script>
+    // 渲染页眉页脚
+    document.getElementById('header-placeholder').innerHTML = window.renderHeader('settings');
+    document.getElementById('footer-placeholder').innerHTML = window.renderFooter();
+
+    const msgDiv = document.getElementById('msg');
+
+    document.getElementById('clearBtn').onclick = () => {
+        if (confirm('彻底删除所有提醒？不可撤销')) {
+            window.reminderCore.clearAllData();
+            msgDiv.innerText = '✅ 已清空所有数据';
+            setTimeout(() => msgDiv.innerText = '', 2000);
+        }
+    };
+
+    document.getElementById('exportBtn').onclick = () => {
+        const data = localStorage.getItem('smart_reminders');
+        const blob = new Blob([data || '[]'], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'reminders_backup.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        msgDiv.innerText = '✅ 导出成功';
+    };
+
+    document.getElementById('notifyBtn').onclick = () => {
+        if (Notification.permission === 'default') {
+            Notification.requestPermission().then(perm => {
+                msgDiv.innerText = perm === 'granted' ? '通知已授权' : '通知被拒绝';
+            });
+        } else {
+            msgDiv.innerText = `通知权限状态：${Notification.permission}`;
+        }
+    };
+</script>
+</body>
+</html>

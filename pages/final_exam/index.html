@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>智能Skill初代机 </title>
+    <link rel="stylesheet" href="assets/styles/global.css">
+    
+</head>
+<body>
+    <div id="header-placeholder"></div>
+    <div class="container">
+        <div class="chat-area">
+            <div class="chat-header">
+                <span> 🤖 Robot初代机 </span>
+            </div>
+            <div class="messages" id="messageList">
+                <div class="message bot">
+                    <div class="avatar">🤖</div>
+                    <div class="bubble">嗨！请给我直接发消息，例如：<br>“5分钟后提醒我喝水”<br>“10分钟 写作业”<br>“120分钟 休息”<br>（最长120分钟）<br>✨ 支持自然语言 + 快捷时长按钮</div>
+                </div>
+            </div>
+            <div class="duration-bar" id="durationBar">
+                <button data-minutes="5" class="duration-btn active">5分钟</button>
+                <button data-minutes="10" class="duration-btn">10分钟</button>
+                <button data-minutes="15" class="duration-btn">15分钟</button>
+                <button data-minutes="30" class="duration-btn">30分钟</button>
+                <button data-minutes="60" class="duration-btn">60分钟</button>
+                <button data-minutes="120" class="duration-btn">120分钟</button>
+            </div>
+            <form class="input-area" id="messageForm">
+                <input type="text" id="messageInput" placeholder="例如：5分钟后提醒我喝水 或 喝咖啡" autocomplete="off">
+                <button type="button" id="sendBtn">发送</button>
+            </form>
+        </div>
+        <div class="sidebar">
+            <h3>⏰ 即将提醒</h3>
+            <div id="reminderSidebarList">加载中...</div>
+        </div>
+    </div>
+    <div id="footer-placeholder"></div>
+
+    <script src="components/header.js"></script>
+    <script src="components/footer.js"></script>
+    <script src="components/reminderCore.js"></script>
+    <script>
+        
+        window.showAlertMessage = function(msg) {
+            const oldBox = document.querySelector('.alert-box');
+            if (oldBox) oldBox.remove();
+            const div = document.createElement('div');
+            div.className = 'alert-box';
+            div.innerText = msg;
+            document.body.appendChild(div);
+            setTimeout(() => div.remove(), 3000);
+        };
+
+        window.onReminderTrigger = function(reminderText) {
+            addChatMessage('bot', `⏰ 叮咚！时间到：“${escapeHtml(reminderText)}”`);
+            refreshSidebar();
+
+            // 额外触发浏览器通知（若授权）
+            if (Notification.permission === 'granted') {
+                new Notification('⏰ 提醒时间到', { body: reminderText, icon: 'https://cdn-icons-png.flaticon.com/512/1999/1999625.png' });
+            }
+        };
+
+        // 渲染页眉页脚
+        document.getElementById('header-placeholder').innerHTML = window.renderHeader('chat');
+        document.getElementById('footer-placeholder').innerHTML = window.renderFooter();
+
+        // DOM 元素
+        const messageContainer = document.getElementById('messageList');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const sidebarList = document.getElementById('reminderSidebarList');
+        const messageForm = document.getElementById('messageForm');   // 新form元素
+
+        let currentQuickMinutes = 5;
+
+        // HTML 转义
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            }).replace(/\n/g, '<br>');
+        }
+
+        // 添加聊天消息 + 存储到 localStorage
+        function addChatMessage(role, content) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${role}`;
+            const avatar = role === 'user' ? '👤' : '🤖';
+            msgDiv.innerHTML = `<div class="avatar">${avatar}</div><div class="bubble">${escapeHtml(content)}</div>`;
+            messageContainer.appendChild(msgDiv);
+            messageContainer.scrollTop = messageContainer.scrollHeight;
+            // 存储聊天记录 (最多100条)
+            let chatLog = localStorage.getItem('chat_log');
+            chatLog = chatLog ? JSON.parse(chatLog) : [];
+            chatLog.push({ role, content, time: Date.now() });
+            if (chatLog.length > 100) chatLog.shift();
+            localStorage.setItem('chat_log', JSON.stringify(chatLog));
+        }
+
+        // 刷新侧边栏 —— 显示即将提醒列表
+        function refreshSidebar() {
+            if (!window.reminderCore) return;
+            const upcoming = window.reminderCore.getUpcomingReminders();
+            if (upcoming.length === 0) {
+                sidebarList.innerHTML = '<div style="color:#999; text-align:center; padding:20px;">✨ 暂无即将提醒<br>添加一条试试~</div>';
+                return;
+            }
+            const now = Date.now();
+            let html = '';
+            for (let rem of upcoming) {
+                const remainMs = rem.triggerAt - now;
+                let remainText = '';
+                if (remainMs <= 0) remainText = '⏰ 即将提醒';
+                else {
+                    const minutesLeft = Math.floor(remainMs / 60000);
+                    const secondsLeft = Math.floor((remainMs % 60000) / 1000);
+                    remainText = `${minutesLeft}分${secondsLeft}秒`;
+                }
+                html += `
+                    <div class="reminder-item" data-id="${rem.id}">
+                        <strong>📌 ${escapeHtml(rem.text)}</strong>
+                        <small style="display:block; color:#6c7a89;">⏱️ ${rem.duration}分钟后提醒</small>
+                        <div class="countdown">🔔 ${remainText}</div>
+                        <button class="delete-reminder" data-id="${rem.id}">🗑️ 删除提醒</button>
+                    </div>
+                `;
+            }
+            sidebarList.innerHTML = html;
+            // 绑定删除按钮事件
+            document.querySelectorAll('.delete-reminder').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const id = parseInt(btn.getAttribute('data-id'));
+                    if (window.reminderCore.deleteReminder(id)) {
+                        refreshSidebar();
+                        addChatMessage('bot', '🗑️ 已删除该提醒');
+                    } else {
+                        addChatMessage('bot', '⚠️ 删除失败或提醒不存在');
+                    }
+                });
+            });
+        }
+
+        // 发送逻辑
+        function sendMessage() {
+            const rawText = messageInput.value.trim();
+            if (!rawText) {
+                addChatMessage('bot', '📝 请输入提醒内容～ 例如：“20分钟后开会”');
+                return;
+            }
+
+            //使用自然语言解析 (支持 “5分钟后喝水” 格式)
+            const parsed = window.reminderCore.parseNaturalLanguage(rawText);
+            if (parsed) {
+                window.reminderCore.addReminder(parsed.minutes, parsed.event, (status, data) => {
+                    if (status === 'success') {
+                        addChatMessage('user', rawText);
+                        addChatMessage('bot', `✅ 智能解析成功！将在 ${data.minutes} 分钟后提醒你：“${escapeHtml(data.event)}”`);
+                        messageInput.value = '';
+                        refreshSidebar();
+                        window.showAlertMessage(`⏲️ 已设定 ${data.minutes} 分钟提醒`);
+                    } else {
+                        addChatMessage('bot', `❌ 设定失败：${data}`);
+                    }
+                });
+                return;
+            }
+
+            // 使用当前快捷按钮选中的时长 + 用户输入作为事件文本
+            addChatMessage('user', rawText);
+            const minutes = currentQuickMinutes;
+            if (minutes <= 0 || minutes > 120) {
+                addChatMessage('bot', '⚠️ 请先点击上方快捷按钮选择有效时长 (5~120分钟)');
+                return;
+            }
+            window.reminderCore.addReminder(minutes, rawText, (status, data) => {
+                if (status === 'success') {
+                    addChatMessage('bot', `✅ 收到！将在 ${data.minutes} 分钟后提醒你：“${escapeHtml(data.event)}” (快捷时长模式)`);
+                    messageInput.value = '';
+                    refreshSidebar();
+                    window.showAlertMessage(`🔔 提醒已创建：${data.minutes}分钟后`);
+                } else {
+                    addChatMessage('bot', `❌ 创建失败：${data}`);
+                }
+            });
+        }
+
+        // 快捷按钮高亮与切换时长
+        const durationBtns = document.querySelectorAll('.duration-btn');
+        function setActiveQuick(minutes) {
+            currentQuickMinutes = minutes;
+            durationBtns.forEach(btn => {
+                const val = parseInt(btn.getAttribute('data-minutes'));
+                if (val === minutes) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+        }
+        durationBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const minutes = parseInt(btn.getAttribute('data-minutes'));
+                setActiveQuick(minutes);
+                addChatMessage('bot', `⏲️ 已选中 ${minutes} 分钟快捷档，可直接输入提醒内容（如“喝咖啡”、“写周报”）`);
+                messageInput.focus();
+            });
+        });
+
+        
+        sendBtn.addEventListener('click', sendMessage);
+
+        
+        if (messageForm) {
+            messageForm.addEventListener('submit', (e) => {
+                e.preventDefault();   
+                sendMessage();         
+            });
+        } else {
+            console.warn('未找到 messageForm，请检查 DOM 结构');
+        }
+
+        
+        // 请求通知权限
+        function requestNotifyOnFirstClick() {
+            if (Notification.permission === 'default') {
+                const handler = () => {
+                    Notification.requestPermission().then(perm => {
+                        if (perm === 'granted') {
+                            addChatMessage('bot', '✅ 通知权限已开启，到点会弹出系统提醒！');
+                        }
+                    });
+                    document.body.removeEventListener('click', handler);
+                };
+                document.body.addEventListener('click', handler);
+            }
+        }
+        requestNotifyOnFirstClick();
+
+        
+        if (window.reminderCore) {
+            window.reminderCore.reloadAllTimers();
+        } else {
+            console.error('reminderCore 未加载, 请检查 components/reminderCore.js 路径');
+        }
+        refreshSidebar();
+        setInterval(refreshSidebar, 1000);
+
+        
+        setTimeout(() => {
+            if (Notification.permission === 'default') {
+                addChatMessage('bot', '💡 点击页面任意位置，可开启浏览器通知，到点自动弹窗提醒。');
+            } else if (Notification.permission === 'granted') {
+                addChatMessage('bot', '✅ 浏览器通知已启用，所有提醒到点会弹出通知。');
+            } else if (Notification.permission === 'denied') {
+                addChatMessage('bot', '🔕 通知被拒绝，但页面内部依然会显示提醒文字。');
+            }
+        }, 1200);
+
+        
+        try {
+            const oldLogs = localStorage.getItem('chat_log');
+            if (oldLogs) {
+                const logs = JSON.parse(oldLogs);
+                if (logs.length > 0 && messageContainer.children.length <= 2) {
+                }
+            }
+        } catch(e) { /* 静默 */ }
+        
+        
+        messageInput.focus();
+    </script>
+</body>
+</html>
