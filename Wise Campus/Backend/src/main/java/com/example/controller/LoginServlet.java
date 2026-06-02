@@ -21,24 +21,33 @@ public class LoginServlet extends BaseServlet {
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        String username = req.getParameter("username");
-        String password = req.getParameter("password");
-
-        User user = new User();
-        user.setUsername(username);
-        user.setPassword(password);
+//        String username = req.getParameter("username");
+//        String password = req.getParameter("password");
+//
+//        User user = new User();
+//        user.setUsername(username);
+//        user.setPassword(password);
 
         try {
-            User user1= getParam(req,User.class);
+            //String json="{'name':'Crizzy','password':'123','role'={'rid'=1001,'name':'管理员'}}";
+            //1.获取参数2.封装实体类
+            User user= getParam(req,User.class);
+            //3.调用业务层
+            User loginUser = userService.login(user);
+            //4.返回结果
+            if(loginUser!=null){
+                req.getSession().setAttribute("user",loginUser);
+                loginUser.setPassword(null);//不返回密码到浏览器
+                //返回JSON格式
+                success(resp,"登录成功",loginUser);
+            }else {
+                error(resp,"用户名或密码错误");
+            }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
 
-        if(loginUser!=null){
-            req.getSession().setAttribute("user",loginUser);
-        }else {
-            req.setAttribute("msg","用户名或密码错误");
-        }
+
     }
 
     @Override

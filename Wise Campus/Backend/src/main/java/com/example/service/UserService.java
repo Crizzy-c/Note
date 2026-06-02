@@ -5,7 +5,7 @@ import com.example.entity.User;
 
 public class UserService {
     private UserDao userDao =new UserDao();
-    public void login(User user)
+    public User login(User user)
     {
         User dbUser=userDao.getUserByName(user.getUsername());
         if(dbUser!=null&&dbUser.getPassword().equals(user.getPassword())){
