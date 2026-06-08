@@ -8,5 +8,5 @@ package com.example.service;
 public class MerchantDetailServlet {
     private MerchantService merchantService = new MerchantService();
 
-    protected 
+    protected
 }

@@ -432,7 +432,7 @@ struct Index {
           .borderRadius(35)
           .margin({ right: 16 })
 
-        // 右侧个人信息（昵称 + 学号）
+        // 右侧个人信息（手机号 + 学号）
         Column() {
           Text('用户昵称')
             .fontSize(20)
