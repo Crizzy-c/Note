@@ -1,0 +1,8 @@
+{
+  "src": [
+    "pages/Index",
+    "pages/son_pages/login",
+    "pages/son_pages/register",
+    "pages/son_pages/canteen/merchantList"
+  ]
+}
