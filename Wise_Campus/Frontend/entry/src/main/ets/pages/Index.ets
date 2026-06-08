@@ -450,7 +450,7 @@ struct Index {
         try {
           const uiContext = this.getUIContext();
           const router = uiContext.getRouter();
-          router.pushUrl({ url: 'pages/son_pages/login' })
+          router.pushUrl({ url: 'pages/sonPages/login' })
             .catch((err: Error) => {
               console.error('跳转失败：' + err.message);
             });

@@ -1,15 +1,16 @@
-// LoginPage.ets
+// RegisterPage.ets
 import http from '@ohos.net.http';
 import { router } from '@kit.ArkUI';
 
-// 请求参数
-interface LoginParams {
+// 注册请求参数
+interface RegisterParams {
   userNo: string;
+  name: string;
   password: string;
 }
 
-// 后端返回的 data 对象实际结构
-interface LoginData {
+// 后端返回的 data 对象结构
+interface RegisterData {
   id: number;
   userNo: string;
   name: string;
@@ -17,34 +18,50 @@ interface LoginData {
 }
 
 // 后端返回的整体响应结构
-interface LoginResponse {
+interface RegisterResponse {
   code: number;
   msg: string;
-  data?: LoginData;
+  data?: RegisterData;
 }
 
 @Entry
 @Component
-struct LoginPage {
+struct RegisterPage {
   @State userNo: string = '';
+  @State phone: string = '';
   @State password: string = '';
-  @State isLoading: boolean = false;     // 登录加载状态
-  @State showPassword: boolean = false;   // 密码是否明文显示
+  @State confirmPassword: string = '';
+  @State isLoading: boolean = false;
+  @State showPassword: boolean = false;
+  @State showConfirmPassword: boolean = false;  // 确认密码的眼睛状态
 
-  // 执行登录
-  async doLogin() {
-    if (this.userNo.trim() === '' || this.password.trim() === '') {
-      console.error('学号或密码不能为空');
-      // 实际项目可弹 toast 提示，这里仅控制台输出
+  // 执行注册
+  async doRegister() {
+    // 前端校验
+    if (this.userNo.trim() === '') {
+      console.error('学号不能为空');
+      return;
+    }
+    if (this.phone.trim() === '') {
+      console.error('手机号不能为空');
+      return;
+    }
+    if (this.password.trim() === '') {
+      console.error('密码不能为空');
+      return;
+    }
+    if (this.password !== this.confirmPassword) {
+      console.error('两次输入的密码不一致');
       return;
     }
 
     this.isLoading = true;
     const httpRequest = http.createHttp();
-    const url = 'http://127.0.0.1:8080/web01/login';
+    const url = 'http://127.0.0.1:8080/web01/register';  // 请替换为实际注册接口
 
-    const requestBody: LoginParams = {
+    const requestBody: RegisterParams = {
       userNo: this.userNo,
+      name: this.phone,
       password: this.password
     };
 
@@ -58,22 +75,16 @@ struct LoginPage {
       });
 
       if (response.responseCode === 200) {
-        const responseData: LoginResponse = JSON.parse(response.result as string);
+        const responseData: RegisterResponse = JSON.parse(response.result as string);
         if (responseData.code === 200) {
-          console.info('登录成功', responseData.msg);
-          const userId = responseData.data?.id;
-          const userName = responseData.data?.name;
-          const userNo = responseData.data?.userNo;
-          console.info(`用户ID: ${userId}, 用户名: ${userName}, 学号: ${userNo}`);
-
-          // 跳转到首页（Index 页面）
-          router.pushUrl({ url: 'pages/Index' })  // 注意路径根据实际情况调整
+          console.info('注册成功', responseData.msg);
+          // 注册成功跳转到登录页
+          router.pushUrl({ url: 'pages/LoginPage' })
             .catch((err: Error) => {
               console.error('跳转失败：' + err.message);
             });
         } else {
-          console.error('登录失败:', responseData.msg);
-          // 可在此处提示用户，比如用 prompt.showToast
+          console.error('注册失败:', responseData.msg);
         }
       } else {
         console.error(`HTTP请求失败，状态码：${response.responseCode}`);
@@ -86,9 +97,9 @@ struct LoginPage {
     }
   }
 
-  // 构建输入框（带图标、圆角、占位符）
+  // 构建输入框（完全复用登录页的 Builder，但支持独立的密码显示状态）
   @Builder
-  buildInputItem(icon: string, placeholder: string, value: string, onChange: (val: string) => void, isPassword: boolean = false) {
+  buildInputItem(icon: string, placeholder: string, value: string, onChange: (val: string) => void, isPassword: boolean = false, passwordState?: boolean, onToggle?: () => void) {
     Row() {
       Text(icon)
         .fontSize(22)
@@ -103,16 +114,16 @@ struct LoginPage {
         .backgroundColor('transparent')
         .placeholderColor('#999999')
         .border({ width: 0 })
-        .type(isPassword && !this.showPassword ? InputType.Password : InputType.Normal)
+        .type(isPassword && !(passwordState ?? false) ? InputType.Password : InputType.Normal)
         .onChange(onChange)
 
       if (isPassword) {
-        Text(this.showPassword ? '🙈' : '👁️')
+        Text(passwordState ? '🙈' : '👁️')
           .fontSize(20)
           .width(40)
           .textAlign(TextAlign.Center)
           .onClick(() => {
-            this.showPassword = !this.showPassword;
+            if (onToggle) onToggle();
           })
           .fontColor('#888888')
       } else {
@@ -129,7 +140,7 @@ struct LoginPage {
 
   build() {
     Column() {
-      // 顶部装饰或留白（安全区扩展可选）
+      // 顶部留白
       Column()
         .height('8%')
 
@@ -139,7 +150,7 @@ struct LoginPage {
         Row() {
           Image($r("app.media.schoolLogo"))
             .width(50)
-            .margin({right:5})
+            .margin({ right: 5 })
           Text('西安文理学院')
             .fontSize(32)
             .fontWeight(FontWeight.Bold)
@@ -147,13 +158,13 @@ struct LoginPage {
         }
         .margin({ top: 24, bottom: 32 })
 
-        Text('智慧校园')
+        Text('注册账号')
           .fontSize(24)
           .fontWeight(FontWeight.Bold)
           .fontColor('#222222')
           .margin({ bottom: 8 })
 
-        Text('请使用学号和密码登录')
+        Text('请填写信息完成注册')
           .fontSize(14)
           .fontColor('#888888')
           .margin({ bottom: 32 })
@@ -161,11 +172,21 @@ struct LoginPage {
         // 学号输入框
         this.buildInputItem('👤', '学号', this.userNo, (val: string) => { this.userNo = val }, false)
 
-        // 密码输入框（带眼睛切换）
-        this.buildInputItem('🔒', '密码', this.password, (val: string) => { this.password = val }, true)
+        // 昵称输入框
+        this.buildInputItem('📛', '手机号', this.phone, (val: string) => { this.phone = val }, false)
 
-        // 登录按钮
-        Button(this.isLoading ? '登录中...' : '登 录')
+        // 密码输入框
+        this.buildInputItem('🔒', '密码', this.password, (val: string) => { this.password = val }, true, this.showPassword, () => {
+          this.showPassword = !this.showPassword
+        })
+
+        // 确认密码输入框
+        this.buildInputItem('🔒', '确认密码', this.confirmPassword, (val: string) => { this.confirmPassword = val }, true, this.showConfirmPassword, () => {
+          this.showConfirmPassword = !this.showConfirmPassword
+        })
+
+        // 注册按钮
+        Button(this.isLoading ? '注册中...' : '注 册')
           .width('100%')
           .height(52)
           .fontSize(18)
@@ -175,29 +196,33 @@ struct LoginPage {
           .margin({ top: 10, bottom: 20 })
           .enabled(!this.isLoading)
           .onClick(() => {
-            this.doLogin();
+            this.doRegister();
           })
 
-        // 辅助链接（注册 / 忘记密码）
+        // 辅助链接（已有账号？去登录）
         Row() {
-          Text('忘记密码？')
+          Text('已有账号？')
             .fontSize(14)
             .fontColor('#666666')
             .padding({ left: 8, right: 8 })
             .onClick(() => {
-              console.info('跳转忘记密码');
-              // 可跳转忘记密码页
+              router.pushUrl({ url: 'pages/sonPages/login' })
+                .catch((err: Error) => {
+                  console.error('跳转失败：' + err.message);
+                });
             })
 
           Blank()
 
-          Text('注册账号')
+          Text('去登录')
             .fontSize(14)
             .fontColor('#3377FF')
             .padding({ left: 8, right: 8 })
             .onClick(() => {
-              console.info('跳转注册页面');
-              // 可跳转注册页
+              router.pushUrl({ url: 'pages/sonPages/login' })
+                .catch((err: Error) => {
+                  console.error('跳转失败：' + err.message);
+                });
             })
         }
         .width('100%')

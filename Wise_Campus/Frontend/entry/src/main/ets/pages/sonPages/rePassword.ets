@@ -1,68 +1,88 @@
-// RegisterPage.ets
+// ChangePasswordPage.ets
 import http from '@ohos.net.http';
 import { router } from '@kit.ArkUI';
 
-// 注册请求参数
-interface RegisterParams {
-  userNo: string;
-  name: string;
-  password: string;
+// 修改密码请求参数
+interface ChangePwdParams {
+  userNo: string;      // 学号（通常需要用户标识，可从全局或本地存储获取）
+  oldPassword: string;
+  newPassword: string;
 }
 
-// 后端返回的 data 对象结构
-interface RegisterData {
+interface RePasswordData {
   id: number;
   userNo: string;
   name: string;
   avatar?: string;
 }
 
-// 后端返回的整体响应结构
-interface RegisterResponse {
+// 后端返回的响应结构
+interface ChangePwdResponse {
   code: number;
   msg: string;
-  data?: RegisterData;
+  data?: RePasswordData;
 }
 
 @Entry
 @Component
-struct RegisterPage {
-  @State userNo: string = '';
-  @State phone: string = '';
-  @State password: string = '';
+struct ChangePasswordPage {
+  @State userNo: string = '';           // 学号（可从本地存储或登录状态获取）
+  @State oldPassword: string = '';
+  @State newPassword: string = '';
   @State confirmPassword: string = '';
   @State isLoading: boolean = false;
-  @State showPassword: boolean = false;
-  @State showConfirmPassword: boolean = false;  // 确认密码的眼睛状态
 
-  // 执行注册
-  async doRegister() {
+  // 密码显示状态
+  @State showOldPassword: boolean = false;
+  @State showNewPassword: boolean = false;
+  @State showConfirmPassword: boolean = false;
+
+  // 页面加载时，可尝试从存储获取学号（示例：通过 router 参数）
+  aboutToAppear() {
+    // 假设从 router 参数获取学号，如果没有则留空（需用户手动输入）
+    const params = router.getParams() as Record<string, string>;
+    if (params && params['userNo']) {
+      this.userNo = params['userNo'];
+    }
+    // 实际项目中可从 Preferences 或 AppStorage 获取已登录学号
+  }
+
+  // 执行修改密码
+  async doChangePassword() {
     // 前端校验
     if (this.userNo.trim() === '') {
       console.error('学号不能为空');
       return;
     }
-    if (this.phone.trim() === '') {
-      console.error('手机号不能为空');
+    if (this.oldPassword.trim() === '') {
+      console.error('旧密码不能为空');
       return;
     }
-    if (this.password.trim() === '') {
-      console.error('密码不能为空');
+    if (this.newPassword.trim() === '') {
+      console.error('新密码不能为空');
       return;
     }
-    if (this.password !== this.confirmPassword) {
-      console.error('两次输入的密码不一致');
+    if (this.newPassword !== this.confirmPassword) {
+      console.error('两次输入的新密码不一致');
+      return;
+    }
+    if (this.newPassword.length < 6) {
+      console.error('新密码长度至少6位');
+      return;
+    }
+    if (this.oldPassword === this.newPassword) {
+      console.error('新密码不能与旧密码相同');
       return;
     }
 
     this.isLoading = true;
     const httpRequest = http.createHttp();
-    const url = 'http://127.0.0.1:8080/web01/register';  // 请替换为实际注册接口
+    const url = 'http://127.0.0.1:8080/web01/changePassword';  // 请替换为实际修改密码接口
 
-    const requestBody: RegisterParams = {
+    const requestBody: ChangePwdParams = {
       userNo: this.userNo,
-      name: this.phone,
-      password: this.password
+      oldPassword: this.oldPassword,
+      newPassword: this.newPassword
     };
 
     try {
@@ -75,16 +95,16 @@ struct RegisterPage {
       });
 
       if (response.responseCode === 200) {
-        const responseData: RegisterResponse = JSON.parse(response.result as string);
+        const responseData: ChangePwdResponse = JSON.parse(response.result as string);
         if (responseData.code === 200) {
-          console.info('注册成功', responseData.msg);
-          // 注册成功跳转到登录页
-          router.pushUrl({ url: 'pages/LoginPage' })
+          console.info('修改密码成功', responseData.msg);
+          // 修改成功后，可提示并跳转到登录页（或返回上一页）
+          router.pushUrl({ url: 'pages/sonPages/login' })
             .catch((err: Error) => {
               console.error('跳转失败：' + err.message);
             });
         } else {
-          console.error('注册失败:', responseData.msg);
+          console.error('修改密码失败:', responseData.msg);
         }
       } else {
         console.error(`HTTP请求失败，状态码：${response.responseCode}`);
@@ -97,7 +117,15 @@ struct RegisterPage {
     }
   }
 
-  // 构建输入框（完全复用登录页的 Builder，但支持独立的密码显示状态）
+  // 跳转到登录页
+  goToLogin() {
+    router.pushUrl({ url: 'pages/LoginPage' })
+      .catch((err: Error) => {
+        console.error('跳转失败：' + err.message);
+      });
+  }
+
+  // 构建输入框（完全复用登录页的 Builder，支持独立的密码显示状态）
   @Builder
   buildInputItem(icon: string, placeholder: string, value: string, onChange: (val: string) => void, isPassword: boolean = false, passwordState?: boolean, onToggle?: () => void) {
     Row() {
@@ -144,7 +172,7 @@ struct RegisterPage {
       Column()
         .height('8%')
 
-      // 中间登录卡片区域
+      // 中间卡片区域
       Column() {
         // Logo / App 名称
         Row() {
@@ -158,35 +186,37 @@ struct RegisterPage {
         }
         .margin({ top: 24, bottom: 32 })
 
-        Text('注册账号')
+        Text('修改密码')
           .fontSize(24)
           .fontWeight(FontWeight.Bold)
           .fontColor('#222222')
           .margin({ bottom: 8 })
 
-        Text('请填写信息完成注册')
+        Text('请设置新密码，确保账号安全')
           .fontSize(14)
           .fontColor('#888888')
           .margin({ bottom: 32 })
 
-        // 学号输入框
+        // 学号输入框（如果已登录可隐藏或只读，这里保留可编辑）
         this.buildInputItem('👤', '学号', this.userNo, (val: string) => { this.userNo = val }, false)
 
-        // 昵称输入框
-        this.buildInputItem('📛', '手机号', this.phone, (val: string) => { this.phone = val }, false)
-
-        // 密码输入框
-        this.buildInputItem('🔒', '密码', this.password, (val: string) => { this.password = val }, true, this.showPassword, () => {
-          this.showPassword = !this.showPassword
+        // 旧密码输入框
+        this.buildInputItem('🔒', '旧密码', this.oldPassword, (val: string) => { this.oldPassword = val }, true, this.showOldPassword, () => {
+          this.showOldPassword = !this.showOldPassword
         })
 
-        // 确认密码输入框
-        this.buildInputItem('🔒', '确认密码', this.confirmPassword, (val: string) => { this.confirmPassword = val }, true, this.showConfirmPassword, () => {
+        // 新密码输入框
+        this.buildInputItem('🔒', '新密码', this.newPassword, (val: string) => { this.newPassword = val }, true, this.showNewPassword, () => {
+          this.showNewPassword = !this.showNewPassword
+        })
+
+        // 确认新密码输入框
+        this.buildInputItem('🔒', '确认新密码', this.confirmPassword, (val: string) => { this.confirmPassword = val }, true, this.showConfirmPassword, () => {
           this.showConfirmPassword = !this.showConfirmPassword
         })
 
-        // 注册按钮
-        Button(this.isLoading ? '注册中...' : '注 册')
+        // 修改按钮
+        Button(this.isLoading ? '提交中...' : '确认修改')
           .width('100%')
           .height(52)
           .fontSize(18)
@@ -196,33 +226,17 @@ struct RegisterPage {
           .margin({ top: 10, bottom: 20 })
           .enabled(!this.isLoading)
           .onClick(() => {
-            this.doRegister();
+            this.doChangePassword();
           })
 
-        // 辅助链接（已有账号？去登录）
+        // 辅助链接：返回登录
         Row() {
-          Text('已有账号？')
-            .fontSize(14)
-            .fontColor('#666666')
-            .padding({ left: 8, right: 8 })
-            .onClick(() => {
-              router.pushUrl({ url: 'pages/LoginPage' })
-                .catch((err: Error) => {
-                  console.error('跳转失败：' + err.message);
-                });
-            })
-
-          Blank()
-
-          Text('去登录')
+          Text('← 返回登录')
             .fontSize(14)
             .fontColor('#3377FF')
             .padding({ left: 8, right: 8 })
             .onClick(() => {
-              router.pushUrl({ url: 'pages/LoginPage' })
-                .catch((err: Error) => {
-                  console.error('跳转失败：' + err.message);
-                });
+              this.goToLogin();
             })
         }
         .width('100%')
@@ -235,7 +249,7 @@ struct RegisterPage {
       .shadow({ radius: 16, color: '#0000001A', offsetY: 4 })
 
       // 底部版本信息
-      Text('版权所有© Copyright 西安文理学院 版本V-1.0')
+      Text('© 2025 校园通 · 智慧校园')
         .fontSize(12)
         .fontColor('#AAAAAA')
         .margin({ top: 40, bottom: 20 })
