@@ -22,12 +22,16 @@ public class UserDao extends BaseDAO {
         }
     }
 
-    /**
-     * 根据id查询用户
-     *
-     * @param id
-     * @return
-     */
+    public User getUserByName(String name){
+        System.out.println(">>>>>>>username:"+name);
+        String sql = "select id,user_no,name,phone,password,avatar from user where name=?";
+            try {
+                User user = super.getBean(User.class, sql, name);
+                return user;
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+    }
     public User getUserById(Long id) {
         String sql = "select id,user_no,name,phone,password,avatar from user where id=?";
         try {

@@ -6,7 +6,9 @@ import { router } from '@kit.ArkUI';
 interface RegisterParams {
   userNo: string;
   name: string;
+  phone:string;
   password: string;
+  avatar:string;
 }
 
 // 后端返回的 data 对象结构
@@ -14,7 +16,8 @@ interface RegisterData {
   id: number;
   userNo: string;
   name: string;
-  avatar?: string;
+  phone:string;
+  avatar: string;
 }
 
 // 后端返回的整体响应结构
@@ -25,11 +28,14 @@ interface RegisterResponse {
 }
 
 @Entry
+
 @Component
 struct RegisterPage {
   @State userNo: string = '';
+  @State name: string = '';
   @State phone: string = '';
   @State password: string = '';
+  @State avatar: string = '';
   @State confirmPassword: string = '';
   @State isLoading: boolean = false;
   @State showPassword: boolean = false;
@@ -40,6 +46,10 @@ struct RegisterPage {
     // 前端校验
     if (this.userNo.trim() === '') {
       console.error('学号不能为空');
+      return;
+    }
+    if (this.name.trim() === '') {
+      console.error('姓名不能为空');
       return;
     }
     if (this.phone.trim() === '') {
@@ -54,15 +64,25 @@ struct RegisterPage {
       console.error('两次输入的密码不一致');
       return;
     }
+    if (this.password !== this.confirmPassword) {
+      console.error('两次输入的密码不一致');
+      return;
+    }
+    if (this.avatar.trim() === '') {
+      console.error('请上传您的头像！');
+      return;
+    }
 
     this.isLoading = true;
     const httpRequest = http.createHttp();
-    const url = 'http://127.0.0.1:8080/web01/register';  // 请替换为实际注册接口
+    const url = 'http://127.0.0.1:8080/web01/reg';  // 请替换为实际注册接口
 
     const requestBody: RegisterParams = {
       userNo: this.userNo,
-      name: this.phone,
-      password: this.password
+      name: this.name,
+      phone:this.phone,
+      password: this.password,
+      avatar:this.avatar
     };
 
     try {
@@ -79,7 +99,7 @@ struct RegisterPage {
         if (responseData.code === 200) {
           console.info('注册成功', responseData.msg);
           // 注册成功跳转到登录页
-          router.pushUrl({ url: 'pages/LoginPage' })
+          router.pushUrl({ url: 'pages/sonPages/login' })
             .catch((err: Error) => {
               console.error('跳转失败：' + err.message);
             });
@@ -117,18 +137,7 @@ struct RegisterPage {
         .type(isPassword && !(passwordState ?? false) ? InputType.Password : InputType.Normal)
         .onChange(onChange)
 
-      if (isPassword) {
-        Text(passwordState ? '🙈' : '👁️')
-          .fontSize(20)
-          .width(40)
-          .textAlign(TextAlign.Center)
-          .onClick(() => {
-            if (onToggle) onToggle();
-          })
-          .fontColor('#888888')
-      } else {
-        Row().width(40)
-      }
+
     }
     .width('100%')
     .height(52)
@@ -140,9 +149,6 @@ struct RegisterPage {
 
   build() {
     Column() {
-      // 顶部留白
-      Column()
-        .height('8%')
 
       // 中间登录卡片区域
       Column() {
@@ -156,7 +162,7 @@ struct RegisterPage {
             .fontWeight(FontWeight.Bold)
             .fontColor('#222222')
         }
-        .margin({ top: 24, bottom: 32 })
+         .margin({ top: 20, bottom:10 })
 
         Text('注册账号')
           .fontSize(24)
@@ -172,7 +178,10 @@ struct RegisterPage {
         // 学号输入框
         this.buildInputItem('👤', '学号', this.userNo, (val: string) => { this.userNo = val }, false)
 
-        // 昵称输入框
+        // 姓名输入框
+        this.buildInputItem('📛', '姓名', this.name, (val: string) => { this.name = val }, false)
+
+        // 手机号输入框
         this.buildInputItem('📛', '手机号', this.phone, (val: string) => { this.phone = val }, false)
 
         // 密码输入框
@@ -184,6 +193,8 @@ struct RegisterPage {
         this.buildInputItem('🔒', '确认密码', this.confirmPassword, (val: string) => { this.confirmPassword = val }, true, this.showConfirmPassword, () => {
           this.showConfirmPassword = !this.showConfirmPassword
         })
+
+        this.buildInputItem('人', '(请输入0该功能暂未开放）头像', this.avatar, (val: string) => { this.avatar = val }, false)
 
         // 注册按钮
         Button(this.isLoading ? '注册中...' : '注 册')

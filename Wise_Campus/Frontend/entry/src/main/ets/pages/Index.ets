@@ -403,6 +403,16 @@ struct Index {
             .shadow({ radius: 2, color: '#00000010', offsetX: 0, offsetY: 1 })
             .onClick(() => {
               console.info(`进入餐厅：${item.name}`);
+              try {
+                const uiContext = this.getUIContext();
+                const router = uiContext.getRouter();
+                router.pushUrl({ url: 'pages/sonPages/Canteen/MerchantList' })
+                  .catch((err: Error) => {
+                    console.error('跳转失败：' + err.message);
+                  });
+              } catch (error) {
+                console.error('获取路由失败：' + JSON.stringify(error));
+              }
             })
           }
           .height('auto')
@@ -411,6 +421,7 @@ struct Index {
       .layoutWeight(1)
       .width('100%')
       .padding({ left: 16, right: 16 })
+
     }
     .width('100%')
     .backgroundColor('#F5F7FA')

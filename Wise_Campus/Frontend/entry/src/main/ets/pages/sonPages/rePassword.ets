@@ -119,7 +119,7 @@ struct ChangePasswordPage {
 
   // 跳转到登录页
   goToLogin() {
-    router.pushUrl({ url: 'pages/LoginPage' })
+    router.pushUrl({ url: 'pages/sonPages/login' })
       .catch((err: Error) => {
         console.error('跳转失败：' + err.message);
       });
@@ -145,18 +145,7 @@ struct ChangePasswordPage {
         .type(isPassword && !(passwordState ?? false) ? InputType.Password : InputType.Normal)
         .onChange(onChange)
 
-      if (isPassword) {
-        Text(passwordState ? '🙈' : '👁️')
-          .fontSize(20)
-          .width(40)
-          .textAlign(TextAlign.Center)
-          .onClick(() => {
-            if (onToggle) onToggle();
-          })
-          .fontColor('#888888')
-      } else {
-        Row().width(40)
-      }
+
     }
     .width('100%')
     .height(52)

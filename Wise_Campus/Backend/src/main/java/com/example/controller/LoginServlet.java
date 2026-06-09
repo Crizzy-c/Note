@@ -7,6 +7,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
 
@@ -34,14 +35,14 @@ public class LoginServlet extends BaseServlet {
             User user= getParam(req,User.class);
             //3.调用业务层
             User loginUser = userService.login(user);
+            System.out.println(">>>>>===="+loginUser);
             //4.返回结果
             if(loginUser!=null){
-                req.getSession().setAttribute("user",loginUser);
+                HttpSession session=req.getSession();
+                session.setAttribute("user",loginUser);
+
                 loginUser.setPassword(null);//不返回密码到浏览器
                 loginUser.setPhone(null);
-                //返回JSON格式
-                //System.out.println("loginUser = " + loginUser);
-                //System.out.println("loginUser.getId() = " + loginUser.getId());
                 success(resp,"登录成功",loginUser);
             }else {
                 error(resp,"学号或密码错误");

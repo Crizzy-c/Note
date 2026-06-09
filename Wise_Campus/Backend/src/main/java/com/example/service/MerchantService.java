@@ -1,6 +1,7 @@
 package com.example.service;
 
-import com.example.dao.CanteenDao;
+import com.example.dao.MerchantDao;
+import com.example.entity.Merchant;
 
 import java.util.List;
 
@@ -10,8 +11,8 @@ import java.util.List;
  * 功能描述：
  */
 public class MerchantService {
-    private CanteenDao canteenDao=new CanteenDao();
-    public List<Canteen> queryAll(){
-        return canteenDao.queryAll();
+    private MerchantDao merchantDao =new MerchantDao();
+    public List<Merchant> queryAll(){
+        return merchantDao.queryAll();
     }
 }

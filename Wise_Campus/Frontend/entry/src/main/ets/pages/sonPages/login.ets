@@ -106,18 +106,7 @@ struct LoginPage {
         .type(isPassword && !this.showPassword ? InputType.Password : InputType.Normal)
         .onChange(onChange)
 
-      if (isPassword) {
-        Text(this.showPassword ? '🙈' : '👁️')
-          .fontSize(20)
-          .width(40)
-          .textAlign(TextAlign.Center)
-          .onClick(() => {
-            this.showPassword = !this.showPassword;
-          })
-          .fontColor('#888888')
-      } else {
-        Row().width(40)
-      }
+
     }
     .width('100%')
     .height(52)
@@ -187,6 +176,17 @@ struct LoginPage {
             .onClick(() => {
               console.info('跳转忘记密码');
               // 可跳转忘记密码页
+              try {
+                const uiContext = this.getUIContext();
+                const router = uiContext.getRouter();
+                router.pushUrl({ url: 'pages/sonPages/rePassword' })
+
+                  .catch((err: Error) => {
+                    console.error('跳转失败：' + err.message);
+                  });
+              } catch (error) {
+                console.error('获取路由失败：' + JSON.stringify(error));
+              }
             })
 
           Blank()
@@ -198,12 +198,11 @@ struct LoginPage {
             .onClick(() => {
               console.info('跳转注册页面');
               // 可跳转注册页
-            })
-            .onClick(() => {
               try {
                 const uiContext = this.getUIContext();
                 const router = uiContext.getRouter();
-                router.pushUrl({ url: 'register' })
+                router.pushUrl({ url: 'pages/sonPages/register' })
+
                   .catch((err: Error) => {
                     console.error('跳转失败：' + err.message);
                   });
@@ -211,6 +210,7 @@ struct LoginPage {
                 console.error('获取路由失败：' + JSON.stringify(error));
               }
             })
+
         }
         .width('100%')
         .margin({ bottom: 28 })

@@ -3,6 +3,7 @@
     "pages/Index",
     "pages/sonPages/login",
     "pages/sonPages/register",
-    "pages/sonPages/canteen/merchantList"
+    "pages/sonPages/rePassword",
+    "pages/sonPages/Canteen/MerchantList"
   ]
 }
