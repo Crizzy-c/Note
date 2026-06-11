@@ -1,5 +1,0 @@
-# MyBatis-Plus 配置
-mybatis-plus:
-  configuration:
-    # 开启下划线自动转驼峰命名
-    map-underscore-to-camel-case: true

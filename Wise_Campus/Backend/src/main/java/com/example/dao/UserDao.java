@@ -43,7 +43,7 @@ public class UserDao extends BaseDAO {
     }
 
     public User getUserByUserNo(String userNo) {
-        String sql = "select id,user_no,name,phone,password,avatar from user where user_no=?";
+        String sql = "select id, user_no as userNo, name, phone, password, avatar from user where user_no=?";;
         try {
             User user = super.getBean(User.class, sql, userNo);
             return user;
