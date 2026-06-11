@@ -427,6 +427,10 @@ struct Index {
     .backgroundColor('#F5F7FA')
   }
 
+
+  @StorageProp('name') name: string = '';
+  @StorageProp('userNo') userNo: string = '';
+
   // 个人页面
   @Builder
   buildProfilePage() {
@@ -443,15 +447,35 @@ struct Index {
           .borderRadius(35)
           .margin({ right: 16 })
 
+
         // 右侧个人信息（手机号 + 学号）
         Column() {
-          Text('用户昵称')
-            .fontSize(20)
-            .fontWeight(FontWeight.Bold)
-            .margin({ bottom: 4 })
-          Text('学号: 20240001')
-            .fontSize(14)
-            .fontColor('#666')
+          if (this.name) {
+            // 已登录：显示名字
+            Text(`${this.name}`)
+              .fontSize(20)
+              .fontWeight(FontWeight.Bold)
+              .margin({ bottom: 4 })
+          } else {
+            // 未登录：显示提示
+            Text('未登录')
+              .fontSize(20)
+              .fontWeight(FontWeight.Bold)
+              .margin({ bottom: 4 })
+          }
+
+          if (this.userNo) {
+            // 已登录：显示名字
+            Text(`学号：${this.userNo}`)
+              .fontSize(14)
+              .fontColor('#666')
+          } else {
+            // 未登录：显示提示
+            Text('学号: 暂无')
+              .fontSize(14)
+              .fontColor('#666')
+          }
+
         }
         .alignItems(HorizontalAlign.Start)
         .justifyContent(FlexAlign.Center)

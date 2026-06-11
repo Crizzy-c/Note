@@ -1,6 +1,7 @@
 // LoginPage.ets
 import http from '@ohos.net.http';
 import { router } from '@kit.ArkUI';
+import { AppStorageV2 } from '@kit.ArkUI';
 
 
 // 请求参数
@@ -65,6 +66,9 @@ struct LoginPage {
           const userId = responseData.data?.id;
           const userName = responseData.data?.name;
           const userNo = responseData.data?.userNo;
+
+          AppStorage.setOrCreate('name',userName);
+          AppStorage.setOrCreate('userNo',userNo);
           console.info(`用户ID: ${userId}, 用户名: ${userName}, 学号: ${userNo}`);
 
           // 跳转到首页（Index 页面）
