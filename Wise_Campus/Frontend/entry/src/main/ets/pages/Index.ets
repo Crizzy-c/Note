@@ -2,9 +2,12 @@ import window from '@ohos.window';
 import http from '@ohos.net.http';
 // 注意：不再需要导入 router，因为改用 UIContext 路由
 // import { router } from '@kit.ArkUI';  // 已弃用，删除
+import { UIContext } from '@kit.ArkUI';
 
 @Entry
 @Component
+
+
 struct Index {
   @State currentTab: number = 0; // 0=主页，1=论坛，2=点餐，3=个人
 

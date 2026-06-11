@@ -1,6 +1,6 @@
 // ChangePasswordPage.ets
 import http from '@ohos.net.http';
-import { router } from '@kit.ArkUI';
+import { promptAction ,router} from '@kit.ArkUI';
 
 // 修改密码请求参数
 interface ChangePwdParams {
@@ -51,26 +51,50 @@ struct ChangePasswordPage {
   async doChangePassword() {
     // 前端校验
     if (this.userNo.trim() === '') {
+      promptAction.showToast({
+        message: '学号不能为空',
+        duration: 500
+      });
       console.error('学号不能为空');
       return;
     }
     if (this.oldPassword.trim() === '') {
+      promptAction.showToast({
+        message: '旧密码不能为空',
+        duration: 500
+      });
       console.error('旧密码不能为空');
       return;
     }
     if (this.newPassword.trim() === '') {
+      promptAction.showToast({
+        message: '新密码不能为空',
+        duration: 500
+      });
       console.error('新密码不能为空');
       return;
     }
     if (this.newPassword !== this.confirmPassword) {
+      promptAction.showToast({
+        message: '两次输入的新密码不一致',
+        duration: 500
+      });
       console.error('两次输入的新密码不一致');
       return;
     }
     if (this.newPassword.length < 6) {
+      promptAction.showToast({
+        message: '新密码长度至少6位',
+        duration: 500
+      });
       console.error('新密码长度至少6位');
       return;
     }
     if (this.oldPassword === this.newPassword) {
+      promptAction.showToast({
+        message: '新密码不能与旧密码相同',
+        duration: 500
+      });
       console.error('新密码不能与旧密码相同');
       return;
     }

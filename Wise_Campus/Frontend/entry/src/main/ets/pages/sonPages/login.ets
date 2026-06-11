@@ -2,6 +2,8 @@
 import http from '@ohos.net.http';
 import { router } from '@kit.ArkUI';
 import { AppStorageV2 } from '@kit.ArkUI';
+import { promptAction } from '@kit.ArkUI';
+import { UIContext } from '@kit.ArkUI';
 
 
 // 请求参数
@@ -32,12 +34,20 @@ struct LoginPage {
   @State password: string = '';
   @State isLoading: boolean = false;     // 登录加载状态
   @State showPassword: boolean = false;   // 密码是否明文显示
+  private uiContext: UIContext | undefined = undefined;
+
+  aboutToAppear() {
+    this.uiContext = this.getUIContext();  // 获取当前页面的 UI 上下文
+  }
 
   // 执行登录
   async doLogin() {
     if (this.userNo.trim() === '' || this.password.trim() === '') {
       console.error('学号或密码不能为空');
-      // 实际项目可弹 toast 提示，这里仅控制台输出
+      promptAction.showToast({
+        message: '学号或密码不能为空',
+        duration: 500
+      });
       return;
     }
 
@@ -66,17 +76,38 @@ struct LoginPage {
           const userId = responseData.data?.id;
           const userName = responseData.data?.name;
           const userNo = responseData.data?.userNo;
-
           AppStorage.setOrCreate('name',userName);
           AppStorage.setOrCreate('userNo',userNo);
           console.info(`用户ID: ${userId}, 用户名: ${userName}, 学号: ${userNo}`);
 
-          // 跳转到首页（Index 页面）
-          router.pushUrl({ url: 'pages/Index' })  // 注意路径根据实际情况调整
-            .catch((err: Error) => {
-              console.error('跳转失败：' + err.message);
-            });
+
+          // promptAction.showToast({
+          //   message: '登录成功',
+          //   duration: 500
+          // });
+          // // 跳转到首页（Index 页面）
+          // router.pushUrl({ url: 'pages/Index' })  // 注意路径根据实际情况调整
+          //   .catch((err: Error) => {
+          //     console.error('跳转失败：' + err.message);
+          //   });
+
+          if (this.uiContext) {
+            this.uiContext.getPromptAction().showToast({ message: '登录成功', duration: 500 });
+            this.uiContext.getRouter().pushUrl({ url: 'pages/Index' });
+          } else {
+            // 降级方案（很少触发）
+            promptAction.showToast({ message: '登录成功', duration: 500 });
+            router.pushUrl({ url: 'pages/Index' });
+          }
+
+
         } else {
+          if (this.uiContext) {
+            this.uiContext.getPromptAction().showToast({ message: '登录失败', duration: 500 });
+          } else {
+            // 降级方案（很少触发）
+            promptAction.showToast({ message: '登录失败', duration: 500 });
+          }
           console.error('登录失败:', responseData.msg);
           // 可在此处提示用户，比如用 prompt.showToast
         }
@@ -85,6 +116,9 @@ struct LoginPage {
       }
     } catch (error) {
       console.error('请求异常：' + JSON.stringify(error));
+      console.error('error.code：' + error.code);
+      console.error('error.message：' + error.message);
+
     } finally {
       httpRequest.destroy();
       this.isLoading = false;

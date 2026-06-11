@@ -1,6 +1,7 @@
 // RegisterPage.ets
 import http from '@ohos.net.http';
 import { router } from '@kit.ArkUI';
+import {promptAction} from '@kit.ArkUI';
 
 // 注册请求参数
 interface RegisterParams {
@@ -45,30 +46,50 @@ struct RegisterPage {
   async doRegister() {
     // 前端校验
     if (this.userNo.trim() === '') {
+      promptAction.showToast({
+        message: '学号不能为空',
+        duration: 500
+      });
       console.error('学号不能为空');
       return;
     }
     if (this.name.trim() === '') {
+      promptAction.showToast({
+        message: '姓名不能为空',
+        duration: 500
+      });
       console.error('姓名不能为空');
       return;
     }
     if (this.phone.trim() === '') {
+      promptAction.showToast({
+        message: '手机号不能为空',
+        duration: 500
+      });
       console.error('手机号不能为空');
       return;
     }
     if (this.password.trim() === '') {
+      promptAction.showToast({
+        message: '密码不能为空',
+        duration: 500
+      });
       console.error('密码不能为空');
       return;
     }
     if (this.password !== this.confirmPassword) {
-      console.error('两次输入的密码不一致');
-      return;
-    }
-    if (this.password !== this.confirmPassword) {
+      promptAction.showToast({
+        message: '两次输入的密码不一致',
+        duration: 500
+      });
       console.error('两次输入的密码不一致');
       return;
     }
     if (this.avatar.trim() === '') {
+      promptAction.showToast({
+        message: '请上传您的头像！',
+        duration: 500
+      });
       console.error('请上传您的头像！');
       return;
     }
